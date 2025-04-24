@@ -1,142 +1,135 @@
 import streamlit as st
 
-# Diagnostic logic function
-def calculate_diagnostic_approach(age, referral, ct, contrast, size, HU_non, HU_portal, HU_delayed,
-                                  growth, bilateral, hetero, macrofat, cystic, calcification):
-    approach = []
-    referral_risks = {"Cancer work-up": 43, "Hormonal imbalance": 3, "Incidentaloma": 3}
-    if referral:
-        approach.append(f"**Referral reason:** Risk of malignancy is {referral_risks.get(referral, 0)}%.")
-    if age is not None:
-        if age < 18: age_risk = 62
-        elif age < 40: age_risk = 4
-        elif age <= 65: age_risk = 6
-        else: age_risk = 11
-        approach.append(f"**Age:** Risk of malignancy is {age_risk}%.")
+st.set_page_config(layout="wide")
 
-    if ct:
-        if size is not None:
-            if size < 1:
-                approach.append("**Size:** < 1 cm suggests very probably benign.")
-            elif size < 4:
-                approach.append("**Size:** Risk of malignancy is 2%.")
-                if growth == "Increased < 5 mm/year":
-                    approach.append("**Growth:** < 5 mm/year suggests benign.")
-            elif size <= 6:
-                approach.append("**Size:** Risk of malignancy is 6%.")
+# --- Sidebar Input ---
+st.sidebar.header("Patient Information")
+age = st.sidebar.number_input("Age", min_value=0, max_value=120, step=1)
+referral_reason = st.sidebar.selectbox("Reason for Referral", ["", "Cancer work-up", "Hormonal imbalance", "Incidentaloma"])
+
+show_ct_inputs = st.sidebar.checkbox("Is there a CT scan performed?")
+if show_ct_inputs:
+    size_cm = st.sidebar.number_input("Tumor Size (cm)", min_value=0.0, step=0.1)
+    HUnon = st.sidebar.number_input("HU (Non-contrast)")
+    growth_rate = st.sidebar.selectbox("Growth rate?", ["No prior scanning", "Increased > 5 mm/year", "Increased < 5 mm/year", "In doubt"])
+    bilateral = st.sidebar.checkbox("Bilateral finding")
+    heterogeneity = st.sidebar.selectbox("Heterogenicity", ["", "Homogen", "Heterogen"])
+    macroscopic_fat = st.sidebar.checkbox("Sign for macroscopic fat")
+    cystic = st.sidebar.checkbox("Cystic")
+    calcification = st.sidebar.checkbox("Calcification")
+
+show_contrast = st.sidebar.checkbox("Examination with contrast")
+if show_contrast:
+    HUportal = st.sidebar.number_input("HU (Venous phase)")
+    HUdelayed = st.sidebar.number_input("HU (Delayed phase)")
+
+# --- Placeholders for boxes ---
+col1, col2, col3 = st.columns([1, 2, 2])
+
+with col2:
+    middle_box = st.empty()
+with col3:
+    final_box = st.empty()
+
+# --- Utility Functions ---
+def calculate_washouts(HUportal, HUdelayed, HUnon):
+    abs_wash = ((HUportal - HUdelayed) / (HUportal - HUnon)) * 100 if (HUportal - HUnon) else 0
+    rel_wash = ((HUportal - HUdelayed) / HUportal) * 100 if HUportal else 0
+    return round(abs_wash, 1), round(rel_wash, 1)
+
+def get_malignancy_risks(age, referral_reason):
+    referral_risks = {"Cancer work-up": 43, "Hormonal imbalance": 3, "Incidentaloma": 3}
+    age_risk = None
+    if age:
+        if age < 18:
+            age_risk = 62
+        elif age <= 39:
+            age_risk = 4
+        elif age <= 65:
+            age_risk = 6
+        else:
+            age_risk = 11
+    referral_risk = referral_risks.get(referral_reason, None)
+    return age_risk, referral_risk
+
+# --- Main Logic ---
+if st.sidebar.button("Get Info"):
+    mid_texts = []
+    final_text = ""
+
+    age_risk, ref_risk = get_malignancy_risks(age, referral_reason)
+    if ref_risk is not None:
+        mid_texts.append(f"The risk of malignancy because of the referral reason is {ref_risk}%")
+    if age_risk is not None:
+        mid_texts.append(f"Age related risk of malignancy is {age_risk}%")
+
+    if show_ct_inputs:
+        if size_cm:
+            if size_cm < 1:
+                mid_texts.append("Very probably benign finding, No follow up needed.")
+                final_text = "Very probably benign finding, No follow up needed."
+            elif size_cm < 4:
+                mid_texts.append("Probability of adrenal carcinoma is very low due to size < 5 cm.")
+                mid_texts.append("Size related risk of malignancy is 2%.")
+            elif size_cm <= 6:
+                mid_texts.append("Size related risk of malignancy is 6%.")
             else:
-                approach.append("**Size:** Risk is 25% adrenal carcinoma and 18% metastasis.")
-        if growth == "Increased > 5 mm/year":
-            approach.append("**Growth:** > 5 mm/year suggests need for evaluation.")
-        elif growth == "In doubt":
-            approach.append("**Growth:** Consider repeat CT in 6–12 months.")
-        if HU_non is not None:
-            if HU_non < 10:
-                approach.append("**Non-contrast HU:** < 10 suggests benign.")
-            elif HU_non > 20:
-                approach.append("**Non-contrast HU:** > 20 suggests evaluation.")
-            else:
-                approach.append("**Non-contrast HU:** 11–20 is indeterminate.")
-        if hetero == "Heterogeneous":
-            approach.append("**Heterogeneity:** Evaluation advised.")
-        if macrofat:
-            approach.append("**Macroscopic fat:** Suggests myelolipoma.")
+                mid_texts.append("Size related risk of malignancy is 25% for carcinoma and 18% for metastasis.")
+
+        if growth_rate == "Increased < 5 mm/year":
+            mid_texts.append("Due to the size < 5 mm, very probably benign finding, No follow up needed.")
+            final_text = "Due to the size < 5 mm, very probably benign finding, No follow up needed."
+        elif growth_rate == "Increased > 5 mm/year":
+            mid_texts.append("Individual decision making / MDT")
+            final_text = "Individual decision making / MDT"
+        elif growth_rate == "In doubt":
+            mid_texts.append("Repeat CT scan without contrast in 6-12 months")
+
+        if HUnon:
+            if HUnon < 10:
+                mid_texts.append("Very probably benign finding, No follow up needed.")
+                final_text = "Very probably benign finding, No follow up needed."
+            elif 11 <= HUnon <= 20:
+                if size_cm and size_cm < 4:
+                    mid_texts.append("Supply with Thorax CT scan, if normal no follow-up. If positive, individual planning.")
+                elif size_cm and size_cm >= 4:
+                    mid_texts.append("Individual planning.")
+            elif HUnon > 20:
+                mid_texts.append("Due to hetrogenicity or HU > 20 check p-metanephrines and evt. individual planning.")
+
+        if macroscopic_fat:
+            mid_texts.append("Probably myelilipoma, so no follow-up needed.")
+            final_text = "Probably myelilipoma, so no follow-up needed."
+
         if bilateral:
-            approach.append("**Bilateral:** Consider differential diagnoses.")
+            mid_texts.append("Due to bilateral finings consider Pheochromocytoma, Bilateral macronodular hyperplasia, Congenital adrenal hyperplasia, ACTH dependent Cushing, lymphoma, infection, bleeding, metastasis, granulomatous disease or 21-hydroxylase deficit.")
 
-    if contrast and HU_non and HU_portal and HU_delayed:
-        abs_washout = ((HU_portal - HU_delayed) / (HU_portal - HU_non)) * 100
-        rel_washout = ((HU_portal - HU_delayed) / HU_portal) * 100
-        approach.append(f"**Absolute washout:** {abs_washout:.2f}%")
-        approach.append(f"**Relative washout:** {rel_washout:.2f}%")
-        if HU_portal > 120 or HU_delayed > 120:
-            approach.append("**Enhancement:** Hypervascular tumor considered.")
-        if HU_non > 20 and HU_portal > 20 and HU_delayed > 20 and abs(HU_portal - HU_delayed) < 6:
-            approach.append("**Pattern:** Suggests hematoma.")
-        if rel_washout <= 58:
-            approach.append("**Washout:** < 58% needs evaluation.")
+    if show_contrast and HUnon:
+        mid_texts.append("CT scan with contrast is recommended.")
+        abs_wash, rel_wash = calculate_washouts(HUportal, HUdelayed, HUnon)
+        mid_texts.append(f"Absolute washout: {abs_wash}%")
+        mid_texts.append(f"Relative washout: {rel_wash}%")
 
-    return approach
+        if HUportal > 120 or HUdelayed > 120:
+            mid_texts.append("Hypervascular tumors like RCC, HCC or pheochromocytoma should be considered.")
+            final_text = "Hypervascular tumors like RCC, HCC or pheochromocytoma should be considered."
+        if (size_cm < 4 and rel_wash > 58) or (heterogeneity == "Heterogen" and size_cm < 4 and rel_wash > 58):
+            mid_texts.append("The relative washout indicates tumor is probably benign (sensitivity 100%, specificity 15%, PPV 100% and NPV 32%, if pheochromocytoma is ruled out)")
+            final_text = "The relative washout indicates tumor is probably benign (sensitivity 100%, specificity 15%, PPV 100% and NPV 32%, if pheochromocytoma is ruled out)"
+        elif rel_wash <= 58:
+            mid_texts.append("Individual planning.")
+            final_text = "Individual planning."
+        if HUnon > 20 and HUportal > 20 and HUdelayed > 20 and max(abs(HUportal - HUnon), abs(HUportal - HUdelayed), abs(HUdelayed - HUnon)) < 6:
+            mid_texts.append("Probably hematoma, no follow-up needed.")
+            final_text = "Probably hematoma, no follow-up needed."
 
-# Final conclusion logic
-def determine_final_conclusion(age, referral, ct, contrast, size, HU_non, HU_portal, HU_delayed,
-                               growth, bilateral, hetero, macrofat):
-    conclusion = {"text": "", "level": 0}
-    referral_risks = {"Cancer work-up": 43, "Hormonal imbalance": 3, "Incidentaloma": 3}
-    if referral in referral_risks and referral_risks[referral] > 20:
-        conclusion = {"text": "High malignancy risk due to referral reason.", "level": 1}
-    if age is not None:
-        age_risk = 62 if age < 18 else 4 if age < 40 else 6 if age <= 65 else 11
-        if age_risk > 20 and age_risk > conclusion["level"]:
-            conclusion = {"text": "Age suggests need for evaluation.", "level": age_risk}
-    if ct:
-        if size:
-            if size < 1 and 4 > conclusion["level"]:
-                conclusion = {"text": "Very probably benign. No follow-up needed.", "level": 4}
-            elif size < 4 and growth == "Increased < 5 mm/year" and 5 > conclusion["level"]:
-                conclusion = {"text": "Very probably benign. No follow-up needed.", "level": 5}
-            elif 4 <= size <= 6 and 6 > conclusion["level"]:
-                conclusion = {"text": "Moderate malignancy risk. Plan individually.", "level": 6}
-            elif size > 6 and 25 > conclusion["level"]:
-                conclusion = {"text": "High malignancy risk. Urgent evaluation needed.", "level": 25}
-        if HU_non is not None:
-            if HU_non < 10 and 9 > conclusion["level"]:
-                conclusion = {"text": "Very probably benign. No follow-up.", "level": 9}
-            if HU_non > 20 or hetero == "Heterogeneous":
-                if 8 > conclusion["level"]:
-                    conclusion = {"text": "Suggests p-metanephrines check and planning.", "level": 8}
-            if 11 <= HU_non <= 20 and 3 > conclusion["level"]:
-                conclusion = {"text": "Thorax CT advised. Follow-up based on results.", "level": 3}
-        if macrofat and 10 > conclusion["level"]:
-            conclusion = {"text": "Probably myelolipoma. No follow-up needed.", "level": 10}
-        if bilateral and 7 > conclusion["level"]:
-            conclusion = {"text": "Consider additional differential diagnoses.", "level": 7}
-    if contrast and HU_non and HU_portal and HU_delayed:
-        rel_washout = ((HU_portal - HU_delayed) / HU_portal) * 100
-        if rel_washout > 58 and 10 > conclusion["level"]:
-            conclusion = {"text": "Washout suggests benign tumor.", "level": 10}
-        elif rel_washout <= 58 and 10 > conclusion["level"]:
-            conclusion = {"text": "Low washout. Plan individually.", "level": 10}
-    return conclusion
+    # Remove duplicates of "Very probably benign finding..."
+    mid_texts = list(dict.fromkeys(mid_texts))
+    if mid_texts.count("Very probably benign finding, No follow up needed.") > 1:
+        mid_texts = [t for t in mid_texts if t != "Very probably benign finding, No follow up needed."] + ["Very probably benign finding, No follow up needed."]
 
-# UI
-st.set_page_config("Adrenal Mass Tool", layout="wide")
-st.title("Adrenal Mass Assessment Tool")
+    middle_box.write("\n".join(mid_texts))
+    final_box.write(final_text)
 
-with st.form("adrenal_form"):
-    age = st.number_input("Age", 0, 120)
-    referral = st.selectbox("Reason for referral", ["", "Cancer work-up", "Hormonal imbalance", "Incidentaloma"])
-    ct = st.checkbox("CT scan performed?")
-    if ct:
-        size = st.number_input("Tumor size (cm)", step=0.1)
-        HU_non = st.number_input("Non-contrast HU")
-        growth = st.selectbox("Growth", ["", "No prior scanning", "Increased > 5 mm/year", "Increased < 5 mm/year", "In doubt"])
-        bilateral = st.checkbox("Bilateral finding")
-        hetero = st.selectbox("Heterogeneity", ["", "Homogeneous", "Heterogeneous"])
-        macrofat = st.checkbox("Macroscopic fat")
-        cystic = st.checkbox("Cystic")
-        calcification = st.checkbox("Calcification")
-    else:
-        size = HU_non = growth = bilateral = hetero = macrofat = cystic = calcification = None
-    contrast = st.checkbox("Contrast-enhanced scan")
-    if contrast:
-        HU_portal = st.number_input("Venous HU")
-        HU_delayed = st.number_input("Delayed HU")
-    else:
-        HU_portal = HU_delayed = None
-    submit = st.form_submit_button("Assess")
-    reset = st.form_submit_button("Reset")
-
-if reset:
+if st.button("Reset"):
     st.experimental_rerun()
-
-if submit:
-    st.subheader("Diagnostic Approach")
-    for line in calculate_diagnostic_approach(age, referral, ct, contrast, size, HU_non, HU_portal, HU_delayed,
-                                              growth, bilateral, hetero, macrofat, cystic, calcification):
-        st.markdown(f"- {line}")
-
-    st.subheader("Final Conclusion")
-    result = determine_final_conclusion(age, referral, ct, contrast, size, HU_non, HU_portal, HU_delayed,
-                                        growth, bilateral, hetero, macrofat)
-    st.markdown(f"**{result['text']}**" if result['text'] else "No conclusion based on current inputs.")
