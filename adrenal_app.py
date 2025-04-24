@@ -54,8 +54,6 @@ with st.sidebar:
 if contrast_exam:
     HU_venous = st.number_input("HU venous phase", value=None, placeholder="Enter HU")
     HU_delayed = st.number_input("HU delayed phase", value=None, placeholder="Enter HU")
-
-        if HU_non is None and HU_venous is not None and HU_venous < 10:
             HU_non = HU_venous
             middle_box.append(("HU non-enhanced is approximated using venous phase value (<10 HU)", 2))
 
