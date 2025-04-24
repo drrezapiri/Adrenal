@@ -64,71 +64,54 @@ from datetime import datetime
 
 if st.button("Get Info"):
     middle_box = []
-    middle_box = []
     right_box = []
     referral_risk, age_risk = calculate_risks(age if age else None, referral_reason)
 
-    middle_box.append(("Risk of malignancy due to referral reason: {}%".format(referral_risk), 1))
-    if age:
-        middle_box.append(("Age related risk of malignancy is {}%".format(age_risk), 1))
-
-    if ct_performed:
-        if size_cm:
-            if size_cm < 4:
-                middle_box.append(("Size-related malignancy risk: 2%", 2))
-            elif 4 <= size_cm <= 6:
-                middle_box.append(("Size-related malignancy risk: 6%", 6))
-            else:
-                middle_box.append(("Size-related malignancy risk: 25% for carcinoma, 18% for metastasis", 9))
-
-        if growth_rate == "Increased < 5 mm/year":
-            middle_box.append(("Due to the size < 5 mm/year, very probably benign finding, No follow up needed", 5))
-            right_box.append("Importance 5: Very probably benign due to slow growth")
-        elif growth_rate == "Increased > 5 mm/year":
-            middle_box.append(("Increased > 5 mm/year — Individual decision making / MDT", 5))
-            right_box.append("Importance 5: Fast growth — MDT needed")
-        elif growth_rate == "In doubt":
-            middle_box.append(("Repeat CT scan without contrast in 6-12 months", 5))
-
-        if size_cm and size_cm < 1:
-            middle_box.append(("Very probably benign finding, No follow up needed", 4))
-            right_box.append("Importance 4: Size < 1 cm — benign")
-
-        if HU_non:
-            if HU_non < 10:
-                middle_box.append(("Very probably benign finding, No follow up needed", 9))
-                right_box.append("Importance 9: HU < 10")
-            elif 11 <= HU_non <= 20:
-                if size_cm and size_cm < 4:
-                    middle_box.append(("Supply with Thorax CT scan, if normal no follow-up", 3))
-                    right_box.append("Importance 3: HU 11-20 and size < 4 cm")
-                else:
-                    middle_box.append(("Individual planning", 3))
-                    right_box.append("Importance 3: HU 11-20 and size > 4 cm")
-            elif HU_non > 20:
-                middle_box.append(("HU > 20 — Check p-metanephrines and consider individual planning", 8))
-                right_box.append("Importance 8: HU > 20")
-
-        if bilateral:
-            middle_box.append(("Bilateral findings — consider pheochromocytoma, hyperplasia, metastases, etc.", 7))
-            right_box.append("Importance 7: Bilateral findings")
-
-        if fat:
-            middle_box.append(("Probably myelolipoma, so no follow-up needed", 10))
-            right_box.append("Importance 10: Macroscopic fat")
-
-    if contrast_exam and all(v is not None for v in [HU_non, HU_venous, HU_delayed]):
-        # Check for hematoma pattern
-        if max(HU_non, HU_venous, HU_delayed) - min(HU_non, HU_venous, HU_delayed) <= 6:
-            middle_box.append(("Hæmatom: ingen signifikant opladning efter kontrast", 13))
-            right_box.append("Importance 13: Hæmatom: ingen signifikant opladning efter kontrast")
-
-        abs_washout, rel_washout = calculate_washouts(HU_non, HU_venous, HU_delayed)
-        if abs_washout is not None and rel_washout is not None:
-            middle_box.append((f"Absolute washout: {abs_washout:.2f}%", 1))
-            middle_box.append((f"Relative washout: {rel_washout:.2f}%", 1))
+    # Store inputs
+    input_data = {
+        "Timestamp": [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
+        "Age": [age],
+        "Referral Reason": [referral_reason],
+        "CT Performed": [ct_performed],
+        "Size (cm)": [size_cm if ct_performed else None],
+        "HU Non-Enhanced": [HU_non if ct_performed else None],
+        "Growth Rate": [growth_rate if ct_performed else None],
+        "Bilateral": [bilateral if ct_performed else None],
+        "Heterogenicity": [heterogenicity if ct_performed else None],
+        "Macroscopic Fat": [fat if ct_performed else None],
+        "Cystic": [cystic if ct_performed else None],
+        "Calcification": [calcification if ct_performed else None],
+        "Contrast Exam": [contrast_exam],
+        "HU Venous": [HU_venous if contrast_exam else None],
+        "HU Delayed": [HU_delayed if contrast_exam else None]
+    }
+    df = pd.DataFrame(input_data)
 
     # Save input data locally
+    try:
+        df.to_csv("adrenal_mass_input_log.csv", mode="a", header=not pd.io.common.file_exists("adrenal_mass_input_log.csv"), index=False)
+        csv_download = df.to_csv(index=False).encode('utf-8')
+    except Exception as e:
+        csv_download = None
+        st.warning(f"Could not save data locally: {e}")
+
+    # File uploader and upload to Google Sheets
+    uploaded_file = st.sidebar.file_uploader("Upload service_account.json", type="json")
+    if uploaded_file:
+        try:
+            creds_dict = json.load(uploaded_file)
+            creds = Credentials.from_service_account_info(
+                creds_dict,
+                scopes=["https://www.googleapis.com/auth/spreadsheets"]
+            )
+            client = gspread.authorize(creds)
+            sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1xfJj0CWmV7qCs3KLQ0LKJLK5D8nOlu-im214_ov6kKw/edit")
+            worksheet = sheet.sheet1
+            existing = pd.DataFrame(worksheet.get_all_records())
+            updated_df = pd.concat([existing, df], ignore_index=True)
+            set_with_dataframe(worksheet, updated_df)
+        except Exception as e:
+            st.warning(f"Could not save to Google Sheets: {e}")
     try:
         df.to_csv("adrenal_mass_input_log.csv", mode="a", header=not pd.io.common.file_exists("adrenal_mass_input_log.csv"), index=False)
         csv_download = df.to_csv(index=False).encode('utf-8')
