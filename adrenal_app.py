@@ -32,7 +32,8 @@ def extract_importance(text):
 
 st.set_page_config(layout="wide")
 
-st.markdown("<small style='color:gray;'>This app was developed by Peter Sommer Ulriksen et al.</small>", unsafe_allow_html=True)
+# Attribution text for credits button
+credit_text = "This app was developed by Peter Sommer Ulriksen and colleagues from the Department of Radiology, Rigshospitalet."
 
 with st.sidebar:
     st.header("Input")
@@ -53,6 +54,9 @@ with st.sidebar:
     if contrast_exam:
         HU_venous = st.number_input("HU venous phase")
         HU_delayed = st.number_input("HU delayed phase")
+
+import pandas as pd
+from datetime import datetime
 
 if st.button("Get Info"):
     middle_box = []
@@ -120,7 +124,44 @@ if st.button("Get Info"):
             middle_box.append((f"Absolute washout: {abs_washout:.2f}%", 1))
             middle_box.append((f"Relative washout: {rel_washout:.2f}%", 1))
 
+    # Save input data to CSV
+    input_data = {
+        "Timestamp": [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
+        "Age": [age],
+        "Referral Reason": [referral_reason],
+        "CT Performed": [ct_performed],
+        "Size (cm)": [size_cm if ct_performed else None],
+        "HU Non-Enhanced": [HU_non if ct_performed else None],
+        "Growth Rate": [growth_rate if ct_performed else None],
+        "Bilateral": [bilateral if ct_performed else None],
+        "Heterogenicity": [heterogenicity if ct_performed else None],
+        "Macroscopic Fat": [fat if ct_performed else None],
+        "Cystic": [cystic if ct_performed else None],
+        "Calcification": [calcification if ct_performed else None],
+        "Contrast Exam": [contrast_exam],
+        "HU Venous": [HU_venous if contrast_exam else None],
+        "HU Delayed": [HU_delayed if contrast_exam else None]
+    }
+    df = pd.DataFrame(input_data)
+    try:
+        df.to_csv("adrenal_mass_input_log.csv", mode="a", header=not pd.io.common.file_exists("adrenal_mass_input_log.csv"), index=False)
+        csv_download = df.to_csv(index=False).encode('utf-8')
+    except Exception as e:
+        csv_download = None
+        st.warning(f"Could not save data: {e}")
+    try:
+        df.to_csv("adrenal_mass_input_log.csv", mode="a", header=not pd.io.common.file_exists("adrenal_mass_input_log.csv"), index=False)
+    except Exception as e:
+        st.warning(f"Could not save data: {e}")
+
     st.markdown("### Results")
+    if csv_download:
+        st.download_button(
+            label="Download this case's input as CSV",
+            data=csv_download,
+            file_name=f"adrenal_mass_case_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv"
+        )
     col1, col2, col3 = st.columns([1, 2, 2])
 
     with col1:
@@ -160,3 +201,7 @@ if st.button("Get Info"):
 
 if st.button("Reset"):
     st.experimental_rerun()
+
+# Credits section at the bottom
+if st.button("Credits"):
+    st.markdown(f"<div style='color: gray; font-size: small;'>{credit_text}</div>", unsafe_allow_html=True)
