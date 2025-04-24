@@ -52,6 +52,33 @@ with st.sidebar:
 
     contrast_exam = st.checkbox("Examination with contrast")
     if contrast_exam:
+        if HU_non is None and HU_venous is not None and HU_venous < 10:
+            HU_non = HU_venous
+            middle_box.append(("HU non-enhanced is approximated using venous phase value (<10 HU)", 2))
+        elif any(v is None for v in [HU_venous, HU_delayed]):
+            middle_box.append(("Please enter both venous and delayed phase HU values to proceed with contrast analysis.", 5))
+        if all(v is not None for v in [HU_non, HU_venous, HU_delayed]):
+            abs_washout, rel_washout = calculate_washouts(HU_non, HU_venous, HU_delayed)
+            if abs_washout is not None and rel_washout is not None:
+                middle_box.append((f"Absolute washout: {abs_washout:.2f}%", 1))
+                middle_box.append((f"Relative washout: {rel_washout:.2f}%", 1))
+
+                if HU_venous > 120 or HU_delayed > 120:
+                    middle_box.append(("Hypervascular tumors like RCC, HCC or pheochromocytoma should be considered", 10))
+                    right_box.append("Importance 10: Hypervascular suspicion")
+
+                if HU_non > 20 and HU_venous > 20 and HU_delayed > 20 and max(HU_non, HU_venous, HU_delayed) - min(HU_non, HU_venous, HU_delayed) <= 6:
+                    middle_box.append(("Hæmatom: ingen signifikant opladning efter kontrast", 13))
+                    right_box.append("Importance 13: Hæmatom: ingen signifikant opladning efter kontrast")
+
+                if (size_cm and size_cm < 4 and rel_washout > 58) or \
+                   (heterogenicity == "Heterogen" and size_cm and size_cm < 4 and rel_washout > 58):
+                    middle_box.append(("Relative washout indicates tumor is probably benign (sensitivity 100%, specificity 15%, PPV 100%, NPV 32%, if pheochromocytoma is ruled out)", 10))
+                    right_box.append("Importance 10: High benign washout")
+                elif rel_washout <= 58:
+                    middle_box.append(("Relative washout < 58% — individual planning", 10))
+                    right_box.append("Importance 10: Low washout")
+
         HU_venous = st.number_input("HU venous phase", value=None, placeholder="Enter HU")
         HU_delayed = st.number_input("HU delayed phase", value=None, placeholder="Enter HU")
 
