@@ -32,6 +32,8 @@ def extract_importance(text):
 
 st.set_page_config(layout="wide")
 
+st.markdown("<small style='color:gray;'>This app was developed by Peter Sommer Ulriksen et al.</small>", unsafe_allow_html=True)
+
 with st.sidebar:
     st.header("Input")
     age = st.number_input("Patient age", min_value=0, max_value=120, step=1)
@@ -137,16 +139,16 @@ if st.button("Get Info"):
     with col3:
         st.markdown("#### Final Conclusion")
         if right_box:
-            conclusion_text = max(right_box, key=extract_importance)
-            importance_level = extract_importance(conclusion_text)
-            clean_text = conclusion_text.split(": ", 1)[1]
+            # Get the text and corresponding importance from the analysis box
+            most_important_finding = max(middle_box, key=lambda x: x[1])
+            final_text = most_important_finding[0]
             # Red for probable malignancy, Yellow for follow-up, Blue otherwise
-            if any(term in clean_text.lower() for term in ["carcinoma", "metastasis", "malignancy", "pheochromocytoma", "hypervascular"]):
-                st.error(clean_text)
-            elif any(term in clean_text.lower() for term in ["mdt", "planning", "follow-up", "check", "consider"]):
-                st.warning(clean_text)
+            if any(term in final_text.lower() for term in ["carcinoma", "metastasis", "malignancy", "pheochromocytoma", "hypervascular"]):
+                st.error(final_text)
+            elif any(term in final_text.lower() for term in ["mdt", "planning", "follow-up", "check", "consider"]):
+                st.warning(final_text)
             else:
-                st.info(clean_text)
+                st.info(final_text)
         else:
             st.info("No critical rule applied.")
 
