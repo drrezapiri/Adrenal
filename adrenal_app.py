@@ -56,6 +56,10 @@ with st.sidebar:
         HU_delayed = st.number_input("HU delayed phase")
 
 import pandas as pd
+import json
+import gspread
+from gspread_dataframe import set_with_dataframe
+from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 if st.button("Get Info"):
@@ -124,28 +128,33 @@ if st.button("Get Info"):
             middle_box.append((f"Absolute washout: {abs_washout:.2f}%", 1))
             middle_box.append((f"Relative washout: {rel_washout:.2f}%", 1))
 
-    # Save input data to CSV
-    input_data = {
-        "Timestamp": [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
-        "Age": [age],
-        "Referral Reason": [referral_reason],
-        "CT Performed": [ct_performed],
-        "Size (cm)": [size_cm if ct_performed else None],
-        "HU Non-Enhanced": [HU_non if ct_performed else None],
-        "Growth Rate": [growth_rate if ct_performed else None],
-        "Bilateral": [bilateral if ct_performed else None],
-        "Heterogenicity": [heterogenicity if ct_performed else None],
-        "Macroscopic Fat": [fat if ct_performed else None],
-        "Cystic": [cystic if ct_performed else None],
-        "Calcification": [calcification if ct_performed else None],
-        "Contrast Exam": [contrast_exam],
-        "HU Venous": [HU_venous if contrast_exam else None],
-        "HU Delayed": [HU_delayed if contrast_exam else None]
-    }
-    df = pd.DataFrame(input_data)
+    # Save input data locally
     try:
         df.to_csv("adrenal_mass_input_log.csv", mode="a", header=not pd.io.common.file_exists("adrenal_mass_input_log.csv"), index=False)
         csv_download = df.to_csv(index=False).encode('utf-8')
+    except Exception as e:
+        csv_download = None
+        st.warning(f"Could not save data locally: {e}")
+
+    # Save input data to Google Sheets if credentials are uploaded
+    with st.sidebar:
+        uploaded_file = st.file_uploader("Upload service_account.json", type="json")
+
+    if uploaded_file:
+        try:
+            creds_dict = json.load(uploaded_file)
+            creds = Credentials.from_service_account_info(
+                creds_dict,
+                scopes=["https://www.googleapis.com/auth/spreadsheets"]
+            )
+            client = gspread.authorize(creds)
+            sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1xfJj0CWmV7qCs3KLQ0LKJLK5D8nOlu-im214_ov6kKw/edit")
+            worksheet = sheet.sheet1
+            existing = pd.DataFrame(worksheet.get_all_records())
+            updated_df = pd.concat([existing, df], ignore_index=True)
+            set_with_dataframe(worksheet, updated_df)
+        except Exception as e:
+            st.warning(f"Could not save to Google Sheets: {e}")
     except Exception as e:
         csv_download = None
         st.warning(f"Could not save data: {e}")
