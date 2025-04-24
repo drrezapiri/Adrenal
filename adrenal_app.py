@@ -125,7 +125,7 @@ if st.button("Get Info"):
         elif any(v is None for v in [HU_venous, HU_delayed]):
             middle_box.append(("Please enter both venous and delayed phase HU values to proceed with contrast analysis.", 5))
         if all(v is not None for v in [HU_non, HU_venous, HU_delayed]):
-        abs_washout, rel_washout = calculate_washouts(HU_non, HU_venous, HU_delayed)
+                    abs_washout, rel_washout = calculate_washouts(HU_non, HU_venous, HU_delayed)
         if abs_washout is not None and rel_washout is not None:
             middle_box.append((f"Absolute washout: {abs_washout:.2f}%", 1))
             middle_box.append((f"Relative washout: {rel_washout:.2f}%", 1))
