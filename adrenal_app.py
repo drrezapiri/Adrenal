@@ -57,9 +57,6 @@ with st.sidebar:
 
 import pandas as pd
 import json
-import gspread
-from gspread_dataframe import set_with_dataframe
-from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 if st.button("Get Info"):
@@ -88,8 +85,11 @@ if st.button("Get Info"):
     df = pd.DataFrame(input_data)
 
     # Save input data locally
-ss_input_log.csv"), index=False)
+    try:
+        df.to_csv("adrenal_mass_input_log.csv", mode="a", header=not pd.io.common.file_exists("adrenal_mass_input_log.csv"), index=False)
+        csv_download = df.to_csv(index=False).encode('utf-8')
     except Exception as e:
+        csv_download = None
         st.warning(f"Could not save data: {e}")
 
     st.markdown("### Results")
