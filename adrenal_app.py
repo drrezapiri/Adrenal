@@ -174,46 +174,9 @@ if st.button("Get Info"):
         csv_download = None
         st.warning(f"Could not save data: {e}")
 
-    # Upload to GitHub
-    def upload_to_github(file_path, repo, path, token):
-        with open(file_path, "rb") as f:
-            content = f.read()
-        b64_content = base64.b64encode(content).decode()
+    # GitHub upload has been disabled for local use.
 
-        url = f"https://api.github.com/repos/{repo}/contents/{path}"
-        headers = {
-            "Authorization": f"token {token}",
-            "Accept": "application/vnd.github+json"
-        }
-
-        r = requests.get(url, headers=headers)
-        if r.status_code == 200:
-            sha = r.json().get("sha")
-            payload = {
-                "message": "Update adrenal_mass_input_log.csv",
-                "content": b64_content,
-                "sha": sha
-            }
-        else:
-            payload = {
-                "message": "Initial commit of adrenal_mass_input_log.csv",
-                "content": b64_content
-            }
-
-        response = requests.put(url, headers=headers, json=payload)
-        return response
-
-    upload_response = upload_to_github(
-        file_path="adrenal_mass_input_log.csv",
-        repo=st.secrets["github"]["repo"],
-        path=st.secrets["github"]["path"],
-        token=st.secrets["github"]["token"]
-    )
-
-    if upload_response.status_code in [200, 201]:
-        st.success("Saved to GitHub successfully.")
-    else:
-        st.warning("GitHub upload failed.")
+    
 
     st.markdown("### Results")
     if csv_download:
