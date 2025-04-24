@@ -56,6 +56,8 @@ with st.sidebar:
         HU_delayed = st.number_input("HU delayed phase")
 
 import pandas as pd
+import base64
+import requests
 import json
 from datetime import datetime
 
@@ -69,6 +71,9 @@ if st.button("Get Info"):
         middle_box.append((f"Age related risk of malignancy is {age_risk}%", 1))
 
     if ct_performed:
+        if not size_cm:
+            st.warning("Please enter the tumor size (short axis in cm) to enable assessment.")
+            st.stop()
         if size_cm:
             if size_cm < 4:
                 middle_box.append(("Size-related malignancy risk: 2%", 2))
@@ -113,7 +118,13 @@ if st.button("Get Info"):
             middle_box.append(("Probably myelolipoma, so no follow-up needed", 10))
             right_box.append("Importance 10: Macroscopic fat")
 
-    if contrast_exam and all(v is not None for v in [HU_non, HU_venous, HU_delayed]):
+    if contrast_exam:
+        if HU_non is None and HU_venous is not None and HU_venous < 10:
+            HU_non = HU_venous
+            middle_box.append(("HU non-enhanced is approximated using venous phase value (<10 HU)", 2))
+        elif any(v is None for v in [HU_venous, HU_delayed]):
+            middle_box.append(("Please enter both venous and delayed phase HU values to proceed with contrast analysis.", 5))
+        if all(v is not None for v in [HU_non, HU_venous, HU_delayed]):
         abs_washout, rel_washout = calculate_washouts(HU_non, HU_venous, HU_delayed)
         if abs_washout is not None and rel_washout is not None:
             middle_box.append((f"Absolute washout: {abs_washout:.2f}%", 1))
@@ -162,6 +173,47 @@ if st.button("Get Info"):
     except Exception as e:
         csv_download = None
         st.warning(f"Could not save data: {e}")
+
+    # Upload to GitHub
+    def upload_to_github(file_path, repo, path, token):
+        with open(file_path, "rb") as f:
+            content = f.read()
+        b64_content = base64.b64encode(content).decode()
+
+        url = f"https://api.github.com/repos/{repo}/contents/{path}"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json"
+        }
+
+        r = requests.get(url, headers=headers)
+        if r.status_code == 200:
+            sha = r.json().get("sha")
+            payload = {
+                "message": "Update adrenal_mass_input_log.csv",
+                "content": b64_content,
+                "sha": sha
+            }
+        else:
+            payload = {
+                "message": "Initial commit of adrenal_mass_input_log.csv",
+                "content": b64_content
+            }
+
+        response = requests.put(url, headers=headers, json=payload)
+        return response
+
+    upload_response = upload_to_github(
+        file_path="adrenal_mass_input_log.csv",
+        repo=st.secrets["github"]["repo"],
+        path=st.secrets["github"]["path"],
+        token=st.secrets["github"]["token"]
+    )
+
+    if upload_response.status_code in [200, 201]:
+        st.success("Saved to GitHub successfully.")
+    else:
+        st.warning("GitHub upload failed.")
 
     st.markdown("### Results")
     if csv_download:
@@ -212,5 +264,18 @@ if st.button("Reset"):
     st.experimental_rerun()
 
 # Credits section at the bottom
-if st.button("Credits"):
-    st.markdown(f"<div style='color: gray; font-size: small;'>{credit_text}</div>", unsafe_allow_html=True)
+st.markdown("""
+    <style>
+    .credits-button {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        z-index: 100;
+    }
+    </style>
+    <div class='credits-button'>
+        <form action='#'>
+            <input type='button' value='Credits' onclick="alert('This app was developed by Peter Sommer Ulriksen and colleagues from the Department of Radiology, Rigshospitalet.')">
+        </form>
+    </div>
+""", unsafe_allow_html=True)
