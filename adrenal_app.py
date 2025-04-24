@@ -56,6 +56,7 @@ with st.sidebar:
 
 if st.button("Get Info"):
     middle_box = []
+    middle_box = []
     right_box = []
     referral_risk, age_risk = calculate_risks(age if age else None, referral_reason)
 
@@ -109,6 +110,11 @@ if st.button("Get Info"):
             right_box.append("Importance 10: Macroscopic fat")
 
     if contrast_exam and all(v is not None for v in [HU_non, HU_venous, HU_delayed]):
+        # Check for hematoma pattern
+        if max(HU_non, HU_venous, HU_delayed) - min(HU_non, HU_venous, HU_delayed) <= 6:
+            middle_box.append(("Hæmatom: ingen signifikant opladning efter kontrast", 13))
+            right_box.append("Importance 13: Hæmatom: ingen signifikant opladning efter kontrast")
+
         abs_washout, rel_washout = calculate_washouts(HU_non, HU_venous, HU_delayed)
         if abs_washout is not None and rel_washout is not None:
             middle_box.append((f"Absolute washout: {abs_washout:.2f}%", 1))
