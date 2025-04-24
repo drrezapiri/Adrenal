@@ -37,12 +37,12 @@ credit_text = "This app was developed by Peter Sommer Ulriksen and colleagues fr
 
 with st.sidebar:
     st.header("Input")
-    age = st.number_input("Patient age", min_value=0, max_value=120, step=1)
+    age = st.number_input("Patient age", min_value=0, max_value=120, step=1, value=None, placeholder="Enter age")
     referral_reason = st.selectbox("Reason for referral", ["Cancer work-up", "Hormonal imbalance", "Incidentaloma"])
     ct_performed = st.checkbox("Is there a CT scan performed?")
     if ct_performed:
-        size_cm = st.number_input("Tumor size (short axis in cm)", min_value=0.0, step=0.1)
-        HU_non = st.number_input("HU non-enhanced")
+        size_cm = st.number_input("Tumor size (short axis in cm)", min_value=0.0, step=0.1, value=None, placeholder="Enter size")
+        HU_non = st.number_input("HU non-enhanced", value=None, placeholder="Enter HU")
         growth_rate = st.selectbox("Has it increased in size more than 5 mm per year", ["No prior scanning", "Increased > 5 mm/year", "Increased < 5 mm/year", "In doubt"])
         bilateral = st.checkbox("Bilateral finding")
         heterogenicity = st.selectbox("Heterogenicity", ["Homogen", "Heterogen"])
@@ -52,8 +52,8 @@ with st.sidebar:
 
     contrast_exam = st.checkbox("Examination with contrast")
     if contrast_exam:
-        HU_venous = st.number_input("HU venous phase")
-        HU_delayed = st.number_input("HU delayed phase")
+        HU_venous = st.number_input("HU venous phase", value=None, placeholder="Enter HU")
+        HU_delayed = st.number_input("HU delayed phase", value=None, placeholder="Enter HU")
 
 import pandas as pd
 import base64
@@ -226,19 +226,25 @@ if st.button("Get Info"):
 if st.button("Reset"):
     st.experimental_rerun()
 
-# Credits section at the bottom
+# Credits section styled and pinned to bottom corner
 st.markdown("""
     <style>
     .credits-button {
         position: fixed;
-        bottom: 10px;
-        right: 10px;
-        z-index: 100;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+    }
+    .credits-button button {
+        background-color: #f0f0f0;
+        color: #333;
+        border: 1px solid #ccc;
+        padding: 4px 10px;
+        border-radius: 5px;
+        cursor: pointer;
     }
     </style>
     <div class='credits-button'>
-        <form action='#'>
-            <input type='button' value='Credits' onclick="alert('This app was developed by Peter Sommer Ulriksen and colleagues from the Department of Radiology, Rigshospitalet.')">
-        </form>
+        <button onclick="alert('This app was developed by Peter Sommer Ulriksen and colleagues from the Department of Radiology, Rigshospitalet.')">Credits</button>
     </div>
 """, unsafe_allow_html=True)
