@@ -52,11 +52,16 @@ with st.sidebar:
 
     contrast_exam = st.checkbox("Examination with contrast")
     if contrast_exam:
+        HU_venous = st.number_input("HU venous phase", value=None, placeholder="Enter HU")
+        HU_delayed = st.number_input("HU delayed phase", value=None, placeholder="Enter HU")
+
         if HU_non is None and HU_venous is not None and HU_venous < 10:
             HU_non = HU_venous
             middle_box.append(("HU non-enhanced is approximated using venous phase value (<10 HU)", 2))
-        elif any(v is None for v in [HU_venous, HU_delayed]):
+
+        if HU_venous is None or HU_delayed is None:
             middle_box.append(("Please enter both venous and delayed phase HU values to proceed with contrast analysis.", 5))
+
         if all(v is not None for v in [HU_non, HU_venous, HU_delayed]):
             abs_washout, rel_washout = calculate_washouts(HU_non, HU_venous, HU_delayed)
             if abs_washout is not None and rel_washout is not None:
