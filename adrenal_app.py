@@ -1,4 +1,5 @@
 import streamlit as st
+import re
 
 def calculate_risks(age, referral_reason):
     referral_risks = {
@@ -24,6 +25,10 @@ def calculate_washouts(HU_non, HU_venous, HU_delayed):
     abs_washout = ((HU_venous - HU_delayed) / (HU_venous - HU_non)) * 100 if (HU_venous - HU_non) != 0 else None
     rel_washout = ((HU_venous - HU_delayed) / HU_venous) * 100 if HU_venous != 0 else None
     return abs_washout, rel_washout
+
+def extract_importance(text):
+    match = re.search(r'Importance (\d+)', text)
+    return int(match.group(1)) if match else 0
 
 st.set_page_config(layout="wide")
 
@@ -125,7 +130,7 @@ if st.button("Get Info"):
     with col3:
         st.markdown("#### Final Conclusion")
         if right_box:
-            st.success(max(right_box, key=lambda x: int(x.split()[1].replace("Importance", ""))))
+            st.success(max(right_box, key=extract_importance))
         else:
             st.info("No critical rule applied.")
 
