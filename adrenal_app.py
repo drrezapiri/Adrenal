@@ -57,60 +57,60 @@ if st.button("Get Info"):
     right_box = []
     referral_risk, age_risk = calculate_risks(age if age else None, referral_reason)
 
-    middle_box.append(f"Risk of malignancy due to referral reason: {referral_risk}%")
+    middle_box.append(("Risk of malignancy due to referral reason: {}%".format(referral_risk), 1))
     if age:
-        middle_box.append(f"Age related risk of malignancy is {age_risk}%")
+        middle_box.append(("Age related risk of malignancy is {}%".format(age_risk), 1))
 
     if ct_performed:
         if size_cm:
             if size_cm < 4:
-                middle_box.append("Size-related malignancy risk: 2%")
+                middle_box.append(("Size-related malignancy risk: 2%", 2))
             elif 4 <= size_cm <= 6:
-                middle_box.append("Size-related malignancy risk: 6%")
+                middle_box.append(("Size-related malignancy risk: 6%", 6))
             else:
-                middle_box.append("Size-related malignancy risk: 25% for carcinoma, 18% for metastasis")
+                middle_box.append(("Size-related malignancy risk: 25% for carcinoma, 18% for metastasis", 9))
 
         if growth_rate == "Increased < 5 mm/year":
-            middle_box.append("Due to the size < 5 mm/year, very probably benign finding, No follow up needed")
+            middle_box.append(("Due to the size < 5 mm/year, very probably benign finding, No follow up needed", 5))
             right_box.append("Importance 5: Very probably benign due to slow growth")
         elif growth_rate == "Increased > 5 mm/year":
-            middle_box.append("Increased > 5 mm/year — Individual decision making / MDT")
+            middle_box.append(("Increased > 5 mm/year — Individual decision making / MDT", 5))
             right_box.append("Importance 5: Fast growth — MDT needed")
         elif growth_rate == "In doubt":
-            middle_box.append("Repeat CT scan without contrast in 6-12 months")
+            middle_box.append(("Repeat CT scan without contrast in 6-12 months", 5))
 
         if size_cm and size_cm < 1:
-            middle_box.append("Very probably benign finding, No follow up needed")
+            middle_box.append(("Very probably benign finding, No follow up needed", 4))
             right_box.append("Importance 4: Size < 1 cm — benign")
 
         if HU_non:
             if HU_non < 10:
-                middle_box.append("Very probably benign finding, No follow up needed")
+                middle_box.append(("Very probably benign finding, No follow up needed", 9))
                 right_box.append("Importance 9: HU < 10")
             elif 11 <= HU_non <= 20:
                 if size_cm and size_cm < 4:
-                    middle_box.append("Supply with Thorax CT scan, if normal no follow-up")
+                    middle_box.append(("Supply with Thorax CT scan, if normal no follow-up", 3))
                     right_box.append("Importance 3: HU 11-20 and size < 4 cm")
                 else:
-                    middle_box.append("Individual planning")
+                    middle_box.append(("Individual planning", 3))
                     right_box.append("Importance 3: HU 11-20 and size > 4 cm")
             elif HU_non > 20:
-                middle_box.append("HU > 20 — Check p-metanephrines and consider individual planning")
+                middle_box.append(("HU > 20 — Check p-metanephrines and consider individual planning", 8))
                 right_box.append("Importance 8: HU > 20")
 
         if bilateral:
-            middle_box.append("Bilateral findings — consider pheochromocytoma, hyperplasia, metastases, etc.")
+            middle_box.append(("Bilateral findings — consider pheochromocytoma, hyperplasia, metastases, etc.", 7))
             right_box.append("Importance 7: Bilateral findings")
 
         if fat:
-            middle_box.append("Probably myelolipoma, so no follow-up needed")
+            middle_box.append(("Probably myelolipoma, so no follow-up needed", 10))
             right_box.append("Importance 10: Macroscopic fat")
 
     if contrast_exam and all(v is not None for v in [HU_non, HU_venous, HU_delayed]):
         abs_washout, rel_washout = calculate_washouts(HU_non, HU_venous, HU_delayed)
         if abs_washout is not None and rel_washout is not None:
-            middle_box.append(f"Absolute washout: {abs_washout:.2f}%")
-            middle_box.append(f"Relative washout: {rel_washout:.2f}%")
+            middle_box.append((f"Absolute washout: {abs_washout:.2f}%", 1))
+            middle_box.append((f"Relative washout: {rel_washout:.2f}%", 1))
 
     st.markdown("### Results")
     col1, col2, col3 = st.columns([1, 2, 2])
@@ -121,16 +121,23 @@ if st.button("Get Info"):
 
     with col2:
         st.markdown("#### Analysis")
-        for text in set(middle_box):
-            if text != "Very probably benign finding, No follow up needed":
-                st.write("-", text)
-        if "Very probably benign finding, No follow up needed" in middle_box:
-            st.write("- Very probably benign finding, No follow up needed")
+        shown_benign = False
+        for text, importance in sorted(middle_box, key=lambda x: -x[1]):
+            if "Very probably benign finding, No follow up needed" in text:
+                if not shown_benign:
+                    st.success(text)
+                    shown_benign = True
+            elif importance >= 9:
+                st.error(text)
+            elif importance >= 5:
+                st.warning(text)
+            else:
+                st.info(text)
 
     with col3:
         st.markdown("#### Final Conclusion")
         if right_box:
-            st.success(max(right_box, key=extract_importance))
+            st.success(max(right_box, key=extract_importance).split(": ", 1)[1])
         else:
             st.info("No critical rule applied.")
 
