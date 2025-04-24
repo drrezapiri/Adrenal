@@ -88,61 +88,7 @@ if st.button("Get Info"):
     df = pd.DataFrame(input_data)
 
     # Save input data locally
-    try:
-        df.to_csv("adrenal_mass_input_log.csv", mode="a", header=not pd.io.common.file_exists("adrenal_mass_input_log.csv"), index=False)
-        csv_download = df.to_csv(index=False).encode('utf-8')
-    except Exception as e:
-        csv_download = None
-        st.warning(f"Could not save data locally: {e}")
-
-    # File uploader and upload to Google Sheets
-    uploaded_file = st.sidebar.file_uploader("Upload service_account.json", type="json")
-    if uploaded_file:
-        try:
-            creds_dict = json.load(uploaded_file)
-            creds = Credentials.from_service_account_info(
-                creds_dict,
-                scopes=["https://www.googleapis.com/auth/spreadsheets"]
-            )
-            client = gspread.authorize(creds)
-            sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1xfJj0CWmV7qCs3KLQ0LKJLK5D8nOlu-im214_ov6kKw/edit")
-            worksheet = sheet.sheet1
-            existing = pd.DataFrame(worksheet.get_all_records())
-            updated_df = pd.concat([existing, df], ignore_index=True)
-            set_with_dataframe(worksheet, updated_df)
-        except Exception as e:
-            st.warning(f"Could not save to Google Sheets: {e}")
-    try:
-        df.to_csv("adrenal_mass_input_log.csv", mode="a", header=not pd.io.common.file_exists("adrenal_mass_input_log.csv"), index=False)
-        csv_download = df.to_csv(index=False).encode('utf-8')
-    except Exception as e:
-        csv_download = None
-        st.warning(f"Could not save data locally: {e}")
-
-    # Save input data to Google Sheets if credentials are uploaded
-    with st.sidebar:
-        uploaded_file = st.file_uploader("Upload service_account.json", type="json")
-
-    if uploaded_file:
-        try:
-            creds_dict = json.load(uploaded_file)
-            creds = Credentials.from_service_account_info(
-                creds_dict,
-                scopes=["https://www.googleapis.com/auth/spreadsheets"]
-            )
-            client = gspread.authorize(creds)
-            sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1xfJj0CWmV7qCs3KLQ0LKJLK5D8nOlu-im214_ov6kKw/edit")
-            worksheet = sheet.sheet1
-            existing = pd.DataFrame(worksheet.get_all_records())
-            updated_df = pd.concat([existing, df], ignore_index=True)
-            set_with_dataframe(worksheet, updated_df)
-        except Exception as e:
-            st.warning(f"Could not save to Google Sheets: {e}")
-    except Exception as e:
-        csv_download = None
-        st.warning(f"Could not save data: {e}")
-    try:
-        df.to_csv("adrenal_mass_input_log.csv", mode="a", header=not pd.io.common.file_exists("adrenal_mass_input_log.csv"), index=False)
+ss_input_log.csv"), index=False)
     except Exception as e:
         st.warning(f"Could not save data: {e}")
 
