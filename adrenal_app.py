@@ -137,7 +137,16 @@ if st.button("Get Info"):
     with col3:
         st.markdown("#### Final Conclusion")
         if right_box:
-            st.success(max(right_box, key=extract_importance).split(": ", 1)[1])
+            conclusion_text = max(right_box, key=extract_importance)
+            importance_level = extract_importance(conclusion_text)
+            clean_text = conclusion_text.split(": ", 1)[1]
+            # Red for probable malignancy, Yellow for follow-up, Blue otherwise
+            if any(term in clean_text.lower() for term in ["carcinoma", "metastasis", "malignancy", "pheochromocytoma", "hypervascular"]):
+                st.error(clean_text)
+            elif any(term in clean_text.lower() for term in ["mdt", "planning", "follow-up", "check", "consider"]):
+                st.warning(clean_text)
+            else:
+                st.info(clean_text)
         else:
             st.info("No critical rule applied.")
 
