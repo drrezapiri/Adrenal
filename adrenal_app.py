@@ -64,6 +64,77 @@ if st.button("Get Info"):
     right_box = []
     referral_risk, age_risk = calculate_risks(age if age else None, referral_reason)
 
+    middle_box.append((f"Risk of malignancy due to referral reason: {referral_risk}%", 1))
+    if age:
+        middle_box.append((f"Age related risk of malignancy is {age_risk}%", 1))
+
+    if ct_performed:
+        if size_cm:
+            if size_cm < 4:
+                middle_box.append(("Size-related malignancy risk: 2%", 2))
+            elif 4 <= size_cm <= 6:
+                middle_box.append(("Size-related malignancy risk: 6%", 6))
+            else:
+                middle_box.append(("Size-related malignancy risk: 25% for carcinoma, 18% for metastasis", 9))
+
+        if growth_rate == "Increased < 5 mm/year":
+            middle_box.append(("Due to the size < 5 mm/year, very probably benign finding, No follow up needed", 5))
+            right_box.append("Importance 5: Very probably benign due to slow growth")
+        elif growth_rate == "Increased > 5 mm/year":
+            middle_box.append(("Increased > 5 mm/year — Individual decision making / MDT", 5))
+            right_box.append("Importance 5: Fast growth — MDT needed")
+        elif growth_rate == "In doubt":
+            middle_box.append(("Repeat CT scan without contrast in 6–12 months", 5))
+
+        if size_cm and size_cm < 1:
+            middle_box.append(("Very probably benign finding, No follow up needed", 4))
+            right_box.append("Importance 4: Size < 1 cm — benign")
+
+        if HU_non:
+            if HU_non < 10:
+                middle_box.append(("Very probably benign finding, No follow up needed", 9))
+                right_box.append("Importance 9: HU < 10")
+            elif 11 <= HU_non <= 20:
+                if size_cm and size_cm < 4:
+                    middle_box.append(("Supply with Thorax CT scan, if normal no follow-up", 3))
+                    right_box.append("Importance 3: HU 11–20 and size < 4 cm")
+                else:
+                    middle_box.append(("Individual planning", 3))
+                    right_box.append("Importance 3: HU 11–20 and size > 4 cm")
+            elif HU_non > 20:
+                middle_box.append(("Due to HU > 20 — Check p-metanephrines and consider individual planning", 8))
+                right_box.append("Importance 8: HU > 20")
+
+        if bilateral:
+            middle_box.append(("Bilateral findings — consider pheochromocytoma, hyperplasia, metastases, etc.", 7))
+            right_box.append("Importance 7: Bilateral findings")
+
+        if fat:
+            middle_box.append(("Probably myelolipoma, so no follow-up needed", 10))
+            right_box.append("Importance 10: Macroscopic fat")
+
+    if contrast_exam and all(v is not None for v in [HU_non, HU_venous, HU_delayed]):
+        abs_washout, rel_washout = calculate_washouts(HU_non, HU_venous, HU_delayed)
+        if abs_washout is not None and rel_washout is not None:
+            middle_box.append((f"Absolute washout: {abs_washout:.2f}%", 1))
+            middle_box.append((f"Relative washout: {rel_washout:.2f}%", 1))
+
+        if HU_venous > 120 or HU_delayed > 120:
+            middle_box.append(("Hypervascular tumors like RCC, HCC or pheochromocytoma should be considered", 10))
+            right_box.append("Importance 10: Hypervascular suspicion")
+
+        if HU_non > 20 and HU_venous > 20 and HU_delayed > 20 and max(HU_non, HU_venous, HU_delayed) - min(HU_non, HU_venous, HU_delayed) <= 6:
+            middle_box.append(("Hæmatom: ingen signifikant opladning efter kontrast", 13))
+            right_box.append("Importance 13: Hæmatom: ingen signifikant opladning efter kontrast")
+
+        if (size_cm and size_cm < 4 and rel_washout and rel_washout > 58) or \
+           (heterogenicity == "Heterogen" and size_cm and size_cm < 4 and rel_washout and rel_washout > 58):
+            middle_box.append(("Relative washout indicates tumor is probably benign (sensitivity 100%, specificity 15%, PPV 100%, NPV 32%, if pheochromocytoma is ruled out)", 10))
+            right_box.append("Importance 10: High benign washout")
+        elif rel_washout and rel_washout <= 58:
+            middle_box.append(("Relative washout < 58% — individual planning", 10))
+            right_box.append("Importance 10: Low washout")
+
     # Store inputs
     input_data = {
         "Timestamp": [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
